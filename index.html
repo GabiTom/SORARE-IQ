@@ -1105,21 +1105,58 @@ async function loadMyGallery() {
 function logoutSorare() { playerState.jwtToken=null; playerState.userSlug=null; playerState.myCards=[]; renderPlayersTab(); }
 
 
-// ── START WITH API ──
-(function startApp() {
-  // Show loading
-  var resEl = document.getElementById('results');
-  var tabEl = document.getElementById('gw-tabs');
-  if (resEl) resEl.innerHTML = '<div class="loading-overlay"><div class="spinner"></div><div class="loading-txt">Connexion API Sorare…</div></div>';
-  if (tabEl) tabEl.innerHTML = '<div style="padding:8px 4px;font-family:DM Mono,monospace;font-size:10px;color:var(--muted)">Chargement…</div>';
 
-  fetchFromAPI().then(function(apiOk) {
-    if (!apiOk) {
-      gwData = buildGWData();
-      var live = gwData.find(function(g){ return g.status === 'live'; });
-      activeGW = live ? live.slug : (gwData[0] ? gwData[0].slug : null);
+// ── MERGE API + STATIC DATA ──
+// If API GW has few leagues (e.g. midweek with only a few games),
+// supplement with static data for the same GW period
+function mergeWithStatic(apiGWs) {
+  if (!apiGWs || apiGWs.length === 0) return buildGWData();
+  
+  var staticGWs = buildGWData();
+  
+  return apiGWs.map(function(apiGW) {
+    // Find matching static GW by overlapping date range
+    var apiStart = new Date(apiGW.start).getTime();
+    var apiEnd = new Date(apiGW.end).getTime();
+    var staticMatch = staticGWs.find(function(sg) {
+      var ss = new Date(sg.start).getTime();
+      var se = new Date(sg.end).getTime();
+      // Overlap if dates are within 2 days of each other
+      return Math.abs(ss - apiStart) < 2*86400000 || Math.abs(se - apiEnd) < 2*86400000;
+    });
+    
+    // If API GW has good data (5+ leagues), use it
+    if (apiGW.leagues && apiGW.leagues.length >= 5) return apiGW;
+    
+    // If API GW has few games but static has more for this period, use static
+    if (staticMatch && staticMatch.leagues.length > (apiGW.leagues ? apiGW.leagues.length : 0)) {
+      return {
+        slug: apiGW.slug,
+        label: apiGW.label,
+        start: apiGW.start,
+        end: apiGW.end,
+        status: apiGW.status,
+        leagues: staticMatch.leagues
+      };
     }
-    init();
+    return apiGW;
+  });
+}
+
+// ── START: static data first, API in background ──
+(function startApp() {
+  // 1. Show static data immediately
+  gwData = buildGWData();
+  var live = gwData.find(function(g){ return g.status === 'live'; });
+  activeGW = live ? live.slug : (gwData[0] ? gwData[0].slug : null);
+  init();
+
+  // 2. Fetch API in background — update if better data available
+  fetchFromAPI().then(function(apiOk) {
+    if (apiOk && gwData.length > 0) {
+      gwData = mergeWithStatic(gwData);
+      renderAll();
+    }
     setupAutoRefresh();
   });
 })();
