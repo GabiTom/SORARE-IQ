@@ -13,25 +13,26 @@ p{font-size:12px;color:#4a5a78;margin-bottom:20px;line-height:1.5}
 label{display:block;font-size:11px;color:#4a5a78;margin-bottom:5px;letter-spacing:.5px;text-transform:uppercase}
 input{width:100%;background:#080c18;border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:11px 14px;color:#dce6f4;font-size:14px;outline:none;margin-bottom:14px;transition:border .2s}
 input:focus{border-color:#00e5ff}
-button{width:100%;padding:12px;border-radius:9px;background:linear-gradient(135deg,rgba(0,229,255,.2),rgba(0,229,255,.08));border:1px solid rgba(0,229,255,.4);color:#00e5ff;font-size:14px;font-weight:700;cursor:pointer;transition:all .2s}
+button{width:100%;padding:12px;border-radius:9px;background:linear-gradient(135deg,rgba(0,229,255,.2),rgba(0,229,255,.08));border:1px solid rgba(0,229,255,.4);color:#00e5ff;font-size:14px;font-weight:700;cursor:pointer;transition:all .2s;margin-bottom:8px}
 button:hover{background:rgba(0,229,255,.25)}
 button:disabled{opacity:.5;cursor:not-allowed}
-.status{margin-top:16px;padding:12px;border-radius:8px;font-size:12px;display:none}
-.status.ok{background:rgba(0,214,143,.1);border:1px solid rgba(0,214,143,.3);color:#00d68f;display:block}
-.status.err{background:rgba(245,101,101,.1);border:1px solid rgba(245,101,101,.3);color:#f56565;display:block}
-.status.loading{background:rgba(0,229,255,.08);border:1px solid rgba(0,229,255,.2);color:#00e5ff;display:block}
+.status{margin-top:12px;padding:12px;border-radius:8px;font-size:12px;display:none;line-height:1.5}
+.ok{background:rgba(0,214,143,.1);border:1px solid rgba(0,214,143,.3);color:#00d68f;display:block}
+.err{background:rgba(245,101,101,.1);border:1px solid rgba(245,101,101,.3);color:#f56565;display:block}
+.loading{background:rgba(0,229,255,.08);border:1px solid rgba(0,229,255,.2);color:#00e5ff;display:block}
 .jwt-box{margin-top:14px;display:none}
-.jwt-box label{color:#00d68f}
-textarea{width:100%;background:#080c18;border:1px solid rgba(0,214,143,.3);border-radius:8px;padding:10px;color:#00d68f;font-size:10px;font-family:monospace;resize:vertical;min-height:80px;outline:none}
-.copy-btn{margin-top:8px;width:100%;padding:9px;border-radius:7px;background:rgba(0,214,143,.12);border:1px solid rgba(0,214,143,.3);color:#00d68f;font-size:12px;font-weight:700;cursor:pointer}
+.jwt-box label{color:#00d68f;display:block;margin-bottom:5px}
+textarea{width:100%;background:#080c18;border:1px solid rgba(0,214,143,.3);border-radius:8px;padding:10px;color:#00d68f;font-size:9px;font-family:monospace;resize:none;min-height:90px;outline:none;word-break:break-all}
+.copy-btn{background:rgba(0,214,143,.12);border:1px solid rgba(0,214,143,.3);color:#00d68f}
 .copy-btn:hover{background:rgba(0,214,143,.22)}
 .note{margin-top:14px;font-size:10px;color:#2a3548;line-height:1.6;text-align:center}
+.step{font-size:11px;color:#4a5a78;margin-bottom:3px}
 </style>
 </head>
 <body>
 <div class="card">
   <h1>🔑 Obtenir ton JWT Sorare</h1>
-  <p>Connecte-toi avec ton compte Sorare pour récupérer ton jeton JWT. Ce jeton te permettra d'accéder à l'API.</p>
+  <p>Entre tes identifiants Sorare pour récupérer ton JWT via la mutation GraphQL officielle.</p>
 
   <label>Email Sorare</label>
   <input type="email" id="email" placeholder="ton@email.com" autocomplete="email">
@@ -41,29 +42,103 @@ textarea{width:100%;background:#080c18;border:1px solid rgba(0,214,143,.3);borde
 
   <button id="btn" onclick="getJWT()">🔗 Obtenir mon JWT</button>
 
+  <div id="step-info" class="step"></div>
   <div class="status" id="status"></div>
 
   <div class="jwt-box" id="jwt-box">
-    <label>✅ Ton JWT Token (valable 1 an)</label>
+    <label>✅ JWT Token (valable 1 an)</label>
     <textarea id="jwt-out" readonly></textarea>
     <button class="copy-btn" onclick="copyJWT()">📋 Copier le JWT</button>
   </div>
 
-  <p class="note">🔒 Connexion 100% locale — rien n'est envoyé ailleurs que Sorare.<br>Le mot de passe est haché bcrypt avant envoi.</p>
+  <p class="note">🔒 Mot de passe haché bcrypt localement avant envoi.<br>Rien n'est stocké ni transmis à des tiers.</p>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bcryptjs/2.4.3/bcrypt.min.js"></script>
 <script>
-// Proxy pour contourner le CORS — utilise un proxy CORS public
-// pour récupérer le salt (lecture seule, aucun risque)
-const CORS_PROXY  = 'https://corsproxy.io/?';
-const SORARE_SALT = 'https://api.sorare.com/api/v1/users/';
-const SORARE_GQL  = 'https://api.sorare.com/federation/graphql';
+// Plusieurs proxies CORS en fallback
+var PROXIES = [
+  'https://api.allorigins.win/raw?url=',
+  'https://corsproxy.io/?',
+  'https://api.codetabs.com/v1/proxy?quest=',
+];
+
+var SORARE_SALT_BASE = 'https://api.sorare.com/api/v1/users/';
+var SORARE_GQL = 'https://api.sorare.com/federation/graphql';
 
 function setStatus(msg, type) {
   var el = document.getElementById('status');
   el.textContent = msg;
   el.className = 'status ' + type;
+}
+function setStep(msg) {
+  document.getElementById('step-info').textContent = msg;
+}
+
+async function fetchWithProxy(url, options, proxyIdx) {
+  proxyIdx = proxyIdx || 0;
+  if (proxyIdx >= PROXIES.length) throw new Error('Tous les proxies ont échoué');
+  var proxyUrl = PROXIES[proxyIdx] + encodeURIComponent(url);
+  try {
+    var res = await fetch(proxyUrl, options || {});
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return res;
+  } catch(e) {
+    console.warn('Proxy ' + proxyIdx + ' échoué:', e.message);
+    return fetchWithProxy(url, options, proxyIdx + 1);
+  }
+}
+
+async function getSalt(email) {
+  // Essai 1: proxy
+  try {
+    var res = await fetchWithProxy(SORARE_SALT_BASE + encodeURIComponent(email));
+    var text = await res.text();
+    var data = JSON.parse(text);
+    if (data.salt) return data.salt;
+  } catch(e) {
+    console.warn('Proxy salt échoué:', e.message);
+  }
+  // Essai 2: appel direct (peut marcher selon le navigateur)
+  try {
+    var res2 = await fetch(SORARE_SALT_BASE + encodeURIComponent(email), {mode:'cors'});
+    var data2 = await res2.json();
+    if (data2.salt) return data2.salt;
+  } catch(e2) {
+    console.warn('Direct salt échoué:', e2.message);
+  }
+  throw new Error('Impossible de récupérer le salt. Vérifie ton email Sorare.');
+}
+
+async function doSignIn(email, hashedPwd) {
+  var mutation = {
+    query: 'mutation SignIn($i:signInInput!){signIn(input:$i){currentUser{slug}jwtToken(aud:"sorare-iq"){token expiredAt}errors{message}}}',
+    variables: { i: { email: email, password: hashedPwd } }
+  };
+  var body = JSON.stringify(mutation);
+  var opts = {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: body
+  };
+
+  // Essai direct d'abord
+  try {
+    var res = await fetch(SORARE_GQL, opts);
+    var data = await res.json();
+    if (data && data.data) return data;
+  } catch(e) {
+    console.warn('Direct GQL échoué:', e.message);
+  }
+
+  // Essai via proxy
+  try {
+    var res2 = await fetchWithProxy(SORARE_GQL, opts);
+    var text2 = await res2.text();
+    return JSON.parse(text2);
+  } catch(e2) {
+    throw new Error('Connexion à Sorare impossible: ' + e2.message);
+  }
 }
 
 async function getJWT() {
@@ -78,54 +153,50 @@ async function getJWT() {
 
   btn.disabled = true;
   document.getElementById('jwt-box').style.display = 'none';
+  document.getElementById('jwt-out').value = '';
 
   try {
-    // Étape 1 : récupérer le salt
-    setStatus('Étape 1/3 — Récupération du salt...', 'loading');
-    var saltUrl = CORS_PROXY + encodeURIComponent(SORARE_SALT + encodeURIComponent(email));
-    var saltRes = await fetch(saltUrl);
-    if (!saltRes.ok) throw new Error('Salt introuvable — vérifie ton email');
-    var saltData = await saltRes.json();
-    if (!saltData.salt) throw new Error('Compte introuvable');
+    // Étape 1: Salt
+    setStep('⟳ Étape 1/3 — Récupération du salt...');
+    setStatus('Récupération du salt...', 'loading');
+    var salt = await getSalt(email);
 
-    // Étape 2 : hasher le mot de passe
-    setStatus('Étape 2/3 — Hachage bcrypt...', 'loading');
-    var hashedPassword = await new Promise(function(resolve, reject) {
-      dcodeIO.bcrypt.hash(password, saltData.salt, null, function(err, hash) {
-        if (err) reject(err); else resolve(hash);
+    // Étape 2: Hash
+    setStep('⟳ Étape 2/3 — Hachage bcrypt...');
+    setStatus('Hachage du mot de passe...', 'loading');
+    var hashed = await new Promise(function(resolve, reject) {
+      dcodeIO.bcrypt.hash(password, salt, null, function(err, hash) {
+        if (err) reject(new Error('Erreur bcrypt: ' + err));
+        else resolve(hash);
       });
     });
 
-    // Étape 3 : mutation signIn
-    setStatus('Étape 3/3 — Connexion à Sorare...', 'loading');
-    var mutation = JSON.stringify({
-      query: 'mutation SignIn($input:signInInput!){signIn(input:$input){currentUser{slug}jwtToken(aud:"sorare-iq"){token expiredAt}errors{message}}}',
-      variables: { input: { email: email, password: hashedPassword } }
-    });
+    // Étape 3: signIn
+    setStep('⟳ Étape 3/3 — Connexion à Sorare...');
+    setStatus('Authentification en cours...', 'loading');
+    var gqlData = await doSignIn(email, hashed);
 
-    var gqlUrl = CORS_PROXY + encodeURIComponent(SORARE_GQL);
-    var gqlRes = await fetch(gqlUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: mutation
-    });
-    var gqlData = await gqlRes.json();
-    var result  = gqlData && gqlData.data && gqlData.data.signIn;
-
-    if (!result) throw new Error('Réponse API invalide');
-    if (result.errors && result.errors.length > 0) throw new Error(result.errors[0].message);
-    if (!result.jwtToken || !result.jwtToken.token) throw new Error('JWT non reçu');
+    var result = gqlData && gqlData.data && gqlData.data.signIn;
+    if (!result) throw new Error('Réponse invalide de Sorare');
+    if (result.errors && result.errors.length > 0) {
+      throw new Error(result.errors[0].message || 'Identifiants incorrects');
+    }
+    if (!result.jwtToken || !result.jwtToken.token) {
+      throw new Error('JWT absent dans la réponse');
+    }
 
     var jwt     = result.jwtToken.token;
-    var expires = result.jwtToken.expiredAt;
-    var slug    = result.currentUser && result.currentUser.slug;
+    var expires = new Date(result.jwtToken.expiredAt).toLocaleDateString('fr-FR');
+    var slug    = result.currentUser ? result.currentUser.slug : '?';
 
-    setStatus('✅ Connecté en tant que @' + slug + ' — JWT valide jusqu\'au ' + new Date(expires).toLocaleDateString('fr-FR'), 'ok');
+    setStep('');
+    setStatus('✅ Connecté : @' + slug + ' — expire le ' + expires, 'ok');
     document.getElementById('jwt-out').value = jwt;
     document.getElementById('jwt-box').style.display = 'block';
 
   } catch(e) {
-    setStatus('❌ Erreur : ' + e.message, 'err');
+    setStep('');
+    setStatus('❌ ' + e.message, 'err');
   } finally {
     btn.disabled = false;
   }
@@ -134,13 +205,14 @@ async function getJWT() {
 function copyJWT() {
   var ta = document.getElementById('jwt-out');
   ta.select();
-  document.execCommand('copy');
-  var btn = document.querySelector('.copy-btn');
-  btn.textContent = '✅ Copié !';
-  setTimeout(function(){ btn.textContent = '📋 Copier le JWT'; }, 2000);
+  try { document.execCommand('copy'); } catch(e) {
+    navigator.clipboard && navigator.clipboard.writeText(ta.value);
+  }
+  var b = document.querySelector('.copy-btn');
+  b.textContent = '✅ Copié !';
+  setTimeout(function(){ b.textContent = '📋 Copier le JWT'; }, 2000);
 }
 
-// Permettre Enter pour lancer
 document.addEventListener('keydown', function(e) {
   if (e.key === 'Enter') getJWT();
 });
