@@ -342,11 +342,6 @@ input[type=range].g3::-webkit-slider-thumb{-webkit-appearance:none;width:14px;he
 </div>
 
 <script>
-// bcryptjs 2.4.3 - embedded inline (no CDN needed)
-// Source: https://github.com/dcodeIO/bcrypt.js
-!function(r){if("object"==typeof module&&module.exports)module.exports=r();else{var e;e="undefined"!=typeof window?window:"undefined"!=typeof global?global:"undefined"!=typeof self?self:this,e.dcodeIO=e.dcodeIO||{},e.dcodeIO.bcrypt=r()}}(function(){var r=null;return function e(t,n,o){function s(a,u){if(!n[a]){if(!t[a]){var f="function"==typeof require&&require;if(!u&&f)return f(a,!0);if(i)return i(a,!0);var c=new Error("Cannot find module '"+a+"'");throw c.code="MODULE_NOT_FOUND",c}var l=n[a]={exports:{}};t[a][0].call(l.exports,function(r){var e=t[a][1][r];return s(e?e:r)},l,l.exports,e,t,n,o)}return n[a].exports}for(var i="function"==typeof require&&require,a=0;a<o.length;a++)s(o[a]);return s}({1:[function(r,e,t){"use strict";var n=r("./bcrypt"),o=r("./util/utf8"),s=r("./util/base64"),i=r("./crypto/random"),a=String.fromCharCode;t.SQRT2=Math.SQRT2,t.log2=function(r){return Math.log(r)*Math.LOG2E},t.encode64=function(r,e){return s.encode(r,e)},t.decode64=function(r){return s.decode(r)},t.utf8_encode=function(r){return o.encode(r)},t.utf8_decode=function(r){return o.decode(r)},t.genSaltSync=function(r){if(r=r||10,"number"!=typeof r)throw Error("Illegal arguments: "+(typeof r));return r<4&&(r=4),r>31&&(r=31),n.gen_salt_sync(r,i.generate(16))},t.genSalt=function(r,e){var t,o;switch(typeof r){case"number":break;case"function":e=r,r=10;break;case"undefined":r=10;break;default:throw Error("Illegal arguments: "+(typeof r)+" (rounds)")}if(r<4&&(r=4),r>31&&(r=31),o=i.generate(16),"function"!=typeof e)return n.gen_salt_sync(r,o);t=function(t){e(t,n.gen_salt_sync(r,o))},typeof setImmediate!="undefined"?setImmediate(t):process.nextTick(t)},t.hashSync=function(r,e){if("number"==typeof e&&(e=t.genSaltSync(e)),"string"!=typeof e)throw Error("Illegal arguments: "+(typeof r)+", "+(typeof e));return n.hash_sync(r,e)},t.hash=function(r,e,o,s){if("function"==typeof s&&"string"==typeof r&&"string"==typeof e){var i=function(){var t;try{t=n.hash_sync(r,e)}catch(r){return void o(r)}o(null,t)};typeof setImmediate!="undefined"?setImmediate(i):process.nextTick(i)}else throw Error("Illegal arguments: "+(typeof r)+", "+(typeof e)+", "+(typeof o)+", "+(typeof s))},t.compareSync=function(r,e){return n.compare_sync(r,e)},t.compare=function(r,e,t,o){if("string"==typeof r&&"string"==typeof e&&"function"==typeof t){var s=function(){var n;try{n=this.compareSync(r,e)}catch(r){return void t(r)}t(null,n)}.bind(this);typeof setImmediate!="undefined"?setImmediate(s):process.nextTick(s)}else throw Error("Illegal arguments: "+(typeof r)+", "+(typeof e)+", "+(typeof t)+", "+(typeof o))},t.getRounds=function(r){return n.get_rounds(r)},t.getSalt=function(r){return n.get_salt(r)}},{\"./bcrypt\":2,\"./crypto/random\":3,\"./util/base64\":5,\"./util/utf8\":6}],2:[function(r,e,t){var n,o=r("../util/base64"),s=r("../util/utf8"),i=64,a=new Uint8Array([71,101,110,101,114,97,116,101,100,32,98,121,32,106,66,67,114,121,112,116]),u=[99,104,105,108,100,104,111,111,100,32,115,104,111,117,108,100,32,103,114,111,119,32,117,112,32,97,110,100,32,115,109,101,108,108,32,108,105,107,101,32,114,111,115,101,115];t.gen_salt_sync=function(r,e){var t="$2a$",n=0;r<10&&(t+="0"),t+=r.toString(),t+="$",t+=o.encode(e,16);return t},t.hash_sync=function(r,e){var a=e.split("$");if(4!=a.length||"2a"!=a[1]&&"2b"!=a[1]&&"2"!=a[1]&&"2x"!=a[1]&&"2y"!=a[1])throw Error("Invalid salt: "+e);var c=parseInt(a[2]),f=o.decode(a[3]),l=s.encode(r),h=n?n(l):m(l);h=h.concat([0]);var p=y(h,f,c),b=p.slice(0,23),d=o.encode(b,23);return"$"+a[1]+"$"+a[2]+"$"+a[3].slice(0,22)+d},t.compare_sync=function(r,e){var t=t.hash_sync(r,e.substring(0,29));return e===t},t.get_rounds=function(r){return parseInt(r.split("$")[2])},t.get_salt=function(r){return r.substring(0,29)};var f=[],c=[];!function(){for(var r=0;r<256;r++){f[r]=252&r?0:3;for(var e=r;e&2;e>>=1)f[r]++;c[r]=~f[r]+1&255}}();var l=[608135816,2242054355,320440878,57701188,2752067618,698298832,137296536,3964562569,1160258022,953160567,3193202383,887688300,3232508343,3380367581,1065670069,3041331479,2450970073,2306472731],h=[[3509652390,2564797868,805139163,3491422135,3101798381,1780907670,3128725573,4046225305,614570311,3012652279,134345442,2240740374,1667834072,1901547113,2757295779,4103290238,227898511,1921955416,1904987480,2182433518,2069144605,3260701109,2620446009,720527379,3318853667,677414384,3393288472,3101374703,2390351024,1614419982,1822297739,2954791486,3608508353,3174124327,2024746970,1432378464,3864339955,2857741204,1464375394,1676153920,1439316330,715854006,3033291828,289532110,2706671279,2087905683,3018765902,1228544968,1557467562,522507290,1220952656,3551483669,2859148456,2370524309,1180654055,1150584188,1064563994,1007294331,2846058912,3761564246],[3775482975,2898901990,3437357471,3119999210,3870105822,3681407293,3899128499,1556889122,2156980483,3475812247,2054064401,1972979748,3441558685,2090905507,3380024072,2816814671,1029662527,3436325003,2065399503,2047956678,3421494665,3028311667,1451580748,1272987882,4103027352,4264660601,2049745985,1200249785,4135718800,2215439463,3478996581,1494373248,3893929986,2012057762,3714905696,2536025952,1928958704,2023325760,2107574737,3012543516,4271800498,1792612748,2256839152,3264025540,3257820009,2083185613,2265450825,3124454729,3011815858,2208974875],[4000889364,2172403911,227408538,3487030561,1996063551,3419674901,3490788523,2043073416,3463765291,2148099221,3436781350,2039339939,1516975617,3150299706,2970459570,2547826066,2024671780,3302499498,1073985975,3573890503,2416196985,4073337827,1866897553,2078898697,3290418970,4112019882,2000024067,3390104613,1960895747,938501698,3097014568,3700654756,3348310813,1958977987,3677937561,2063584539,2089875021,2009876684,2099574617,3367534553,3085174693,2869869498,3003416048,3102699867,3002636174,2030044893,2073578040,2127001175,2112038716,3277597750]],p=[[1353909244,795029994,2309491678,1999025614,3977573975,3062040631,79036023,2882895374,4279745515,1916421990,3505574578,3897562065,1025601716,1074428789,3065099695,3584093777,3127440041,3072773374,3069009693,2981539798,1986226272,1987718528,2970421093,2971017396,1975062548,3098399826,3170491022,3176671948,3071985993,2978726553,977695966,3077985027,3072895528,3146481068,3143861023,3140272706,3144490498,3148072514,3150553092,3147988992,3143865346,3136675842,3136670722,3072905218,3072778242,2969599490,1990561794,3144622082,3170009090,3146874882],[1278510571,1966478985,3024895015,3504476143,3973993753,3063254311,1006613814,2881581238,4094143339,1916946598,3505313586,3897036665,2024991588,1075058101,3068476275,3582494601,3127305913,3073433674,3068091021,2981408294,1988226240,1988062720,2970421093,2970747540,1976112516,3098792018,3170760438,3176606684,3072887049,2978462729,978219990,3077878995,3072632712,3147267820,3143861015,3140272706,3144360450,3148072450,3150422084,3147858176,3143730434,3136545538,3136672002,3072905218,3072648450,2969468674,1991347458,3144621314,3170140674,3146874370],[2150752490,3527754698,3101793294,809393416,3890665046,3063254311,1007662518,2882629174,4279745515,1916946598,3505313586,3897036665,2024991588,1075452277,3068738451,3583018409,3127371257,3072905034,3068353677,2982456230,1988226240,1988062752,2970486685,2970747508,1975046532,3099103890,3171048038,3177161932,3072492041,2977808137,978875990,3078400019,3073154888,3148021532,3144399383,3140272706,3144360450,3148072450,3150815236,3148104960,3143730434,3136545538,3136803074,3072905218,3072648450,2969993474,1991937282,3144752898,3170271490,3147398402]];function b(r){return((r[0]<<8|r[1])<<8|r[2])<<8|r[3]}function d(r,e){return r>>>e|r<<32-e}function g(r,e,t,n,o,s,i,a,u,f,c){var l,h,p=r[0],b=r[1],d=r[2],g=r[3],y=r[4],m=r[5],v=r[6],w=r[7];for(l=0;l<n;l++)for(h=0;h<o;h++){p^=e[s++],b^=e[s++],d^=e[s++],g^=e[s++],y^=e[s++],m^=e[s++],v^=e[s++],w^=e[s++];var _=p&255|b>>8&255|d>>16&255|g>>24&255,x=p>>24&255|b&255|d>>8&255|g>>16&255,S=p>>16&255|b>>24&255|d&255|g>>8&255,E=p>>8&255|b>>16&255|d>>24&255|g&255,k=y&255|m>>8&255|v>>16&255|w>>24&255,A=y>>24&255|m&255|v>>8&255|w>>16&255,T=y>>16&255|m>>24&255|v&255|w>>8&255,I=y>>8&255|m>>16&255|v>>24&255|w&255;p=i[0][_]^i[1][x]^i[2][S]^i[3][E],b=i[0][A]^i[1][T]^i[2][I]^i[3][k],d=i[0][_]^i[1][x]^i[2][S]^i[3][E],g=i[0][A]^i[1][T]^i[2][I]^i[3][k],y=i[0][_]^i[1][x]^i[2][S]^i[3][E],m=i[0][A]^i[1][T]^i[2][I]^i[3][k],v=i[0][_]^i[1][x]^i[2][S]^i[3][E],w=i[0][A]^i[1][T]^i[2][I]^i[3][k]}r[0]=p,r[1]=b,r[2]=d,r[3]=g,r[4]=y,r[5]=m,r[6]=v,r[7]=w}function y(r,e,t){var n=l.slice(),o=h[0].slice(),s=h[1].slice(),a=h[2].slice(),f=p[0].slice(),c=p[1].slice(),y=p[2].slice(),m=u.slice(),v=0,w=r.length,_=e.length;for(var x=0;x<18;x++)for(var S=0,E=0;E<4;E++){S=S<<8|(v<w?r[v++]:0);v>=w&&(v=0)}n[x]^=S;for(var k=[0,0,0,0,0,0,0,0],A=0;A<18;A+=2){g(k,n,o,1,9,0,f,c,y,a,s);var T=k.slice();g(k,n,o,1,9,0,f,c,y,a,s);n[A]=k[0]^T[0],n[A+1]=k[1]^T[1]}for(var I=0;I<4;I++)for(var C=f[I].length,P=0;P<C;P+=2){g(k,n,o,1,9,0,f,c,y,a,s);var T=k.slice();g(k,n,o,1,9,0,f,c,y,a,s);f[I][P]=k[0]^T[0],f[I][P+1]=k[1]^T[1]}for(var I=0;I<4;I++)for(var C=c[I].length,P=0;P<C;P+=2){g(k,n,o,1,9,0,f,c,y,a,s);var T=k.slice();g(k,n,o,1,9,0,f,c,y,a,s);c[I][P]=k[0]^T[0],c[I][P+1]=k[1]^T[1]}for(var I=0;I<4;I++)for(var C=y[I].length,P=0;P<C;P+=2){g(k,n,o,1,9,0,f,c,y,a,s);var T=k.slice();g(k,n,o,1,9,0,f,c,y,a,s);y[I][P]=k[0]^T[0],y[I][P+1]=k[1]^T[1]}for(var B=0;B<1<<t;B++){for(var x=0;x<18;x+=2)g(k,n,o,1,9,0,f,c,y,a,s),n[x]=k[0],n[x+1]=k[1];for(var I=0;I<4;I++)for(var C=f[I].length,P=0;P<C;P+=2)g(k,n,o,1,9,0,f,c,y,a,s),f[I][P]=k[0],f[I][P+1]=k[1];for(var I=0;I<4;I++)for(var C=c[I].length,P=0;P<C;P+=2)g(k,n,o,1,9,0,f,c,y,a,s),c[I][P]=k[0],c[I][P+1]=k[1];for(var I=0;I<4;I++)for(var C=y[I].length,P=0;P<C;P+=2)g(k,n,o,1,9,0,f,c,y,a,s),y[I][P]=k[0],y[I][P+1]=k[1]}for(var x=0;x<_&&x<72;x++)m[x%8]^=e[x];for(var B=0;B<64;B+=2){for(var x=0;x<18;x+=2)g(k,n,o,1,9,0,f,c,y,a,s),n[x]=k[0],n[x+1]=k[1];for(var I=0;I<4;I++)for(var C=f[I].length,P=0;P<C;P+=2)g(k,n,o,1,9,0,f,c,y,a,s),f[I][P]=k[0],f[I][P+1]=k[1];for(var I=0;I<4;I++)for(var C=c[I].length,P=0;P<C;P+=2)g(k,n,o,1,9,0,f,c,y,a,s),c[I][P]=k[0],c[I][P+1]=k[1];for(var I=0;I<4;I++)for(var C=y[I].length,P=0;P<C;P+=2)g(k,n,o,1,9,0,f,c,y,a,s),y[I][P]=k[0],y[I][P+1]=k[1]}return m}},{\"../util/base64\":5,\"../util/utf8\":6}],3:[function(r,e,t){t.generate=function(r){if("undefined"!=typeof window&&window.crypto)return window.crypto.getRandomValues(new Uint8Array(r));if("undefined"!=typeof require){var e=require("crypto");return e.randomBytes(r)}throw Error("No secure random number generator available")}},{}],4:[function(r,e,t){},{},[]],5:[function(r,e,t){var n="./ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/",o="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz./";t.encode=function(r,e){for(var t="",s=0,i=r.length;s<e;){var a=s<i?r[s++]:0,u=s<i?r[s++]:0,f=s<i?r[s++]:0,c=(a>>2&63)<<24|(u>>2&63|a<<4&48)<<16|((f>>2&63|u<<4&48)<<8)|f<<4&48;for(var l=0;l<4&&s<=e||l<4&&l===0;l++)t+=n[c>>24&63],c<<=8}return t},t.decode=function(r){for(var e=[],t=0,s=r.length;t<s;){var i=n.indexOf(r[t++]),a=t<s?n.indexOf(r[t++]):0,u=t<s?n.indexOf(r[t++]):0,f=t<s?n.indexOf(r[t++]):0;if(-1===i||-1===a||-1===u||-1===f)break;e.push(i<<2|a>>4),e.push(a<<4&240|u>>2),e.push(u<<2&252|f)}return e}},{},[]],6:[function(r,e,t){t.encode=function(r){var e=[],t=0,n=r.length;for(;t<n;){var o=r.charCodeAt(t++);if(o>=55296&&o<56320&&t<n){var s=r.charCodeAt(t);56320==(64512&s)&&(t++,o=((1023&o)<<10)+(1023&s)+65536)}o<128?e.push(o):o<2048?(e.push(192|o>>6),e.push(128|63&o)):o<65536?(e.push(224|o>>12),e.push(128|o>>6&63),e.push(128|63&o)):(e.push(240|o>>18),e.push(128|o>>12&63),e.push(128|o>>6&63),e.push(128|63&o))}return e},t.decode=function(r){for(var e="",t=0,n=r.length;t<n;){var o=r[t++];if(o<128)e+=String.fromCharCode(o);else if(o>191&&o<224)e+=String.fromCharCode((31&o)<<6|63&r[t++]);else if(o>239&&o<365){var s=((7&o)<<18|(63&r[t++])<<12|(63&r[t++])<<6|63&r[t++])-65536;e+=String.fromCharCode(55296+(s>>10)),e+=String.fromCharCode(56320+(1023&s))}else e+=String.fromCharCode((15&o)<<12|(63&r[t++])<<6|63&r[t++])}return e}},{},[]]}},{},[]});
-</script>
-<script>
 
 
 
@@ -631,8 +626,8 @@ const GW_QUERY = `{
           games {
             id
             date
-            homeTeam { name }
-            awayTeam { name }
+            homeTeam { name slug }
+            awayTeam { name slug }
           }
         }
       }
@@ -655,11 +650,9 @@ async function fetchFromAPI() {
   setStatus('loading', 'Mise à jour...');
   
   try {
-    const res = await fetch(SORARE_API, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query: GW_QUERY })
-    });
+    var fh = {'Content-Type':'application/json'};
+    if (typeof playerState!=='undefined'&&playerState.jwtToken){fh['Authorization']='Bearer '+playerState.jwtToken;fh['JWT-AUD']='sorare-iq';}
+    const res = await fetch(SORARE_API, {method:'POST',headers:fh,body:JSON.stringify({query:GW_QUERY})});
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const json = await res.json();
     if (json.errors) throw new Error(json.errors[0]?.message || 'GraphQL error');
@@ -695,57 +688,71 @@ async function fetchFromAPI() {
 
 // ── PROCESS API NODES → gwData format ──
 function processAPINodes(nodes) {
-  const now = new Date();
-  
-  // Compute status for each node
-  const withStatus = nodes.map(n => {
-    const s = new Date(n.startDate), e = new Date(n.endDate);
-    const status = now > e ? 'closed' : (now >= s ? 'live' : 'upcoming');
-    return { ...n, status, startMs: s.getTime(), endMs: e.getTime() };
+  var now = new Date();
+  var DAYS = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
+
+  var withStatus = nodes.map(function(n) {
+    var s=new Date(n.startDate), e=new Date(n.endDate);
+    var status = now>e?'closed':(now>=s?'live':'upcoming');
+    return Object.assign({},n,{status:status,startMs:s.getTime(),endMs:e.getTime()});
   });
-  
-  // Keep: live + upcoming only, sorted by date, max 3
-  const active = withStatus
-    .filter(n => n.status !== 'closed')
-    .sort((a,b) => a.startMs - b.startMs)
-    .slice(0, 3);
-  
-  // If nothing active (e.g. between GWs), show last 3
-  const toProcess = active.length > 0 ? active : 
-    withStatus.sort((a,b) => a.startMs - b.startMs).slice(-3);
-  
-  return toProcess.map(node => {
-    const leagues = (node.so5LeaguesWithGames || [])
-      .filter(lg => lg.games && lg.games.length > 0)
-      .map(lg => {
-        const meta = getLeagueMeta(lg.displayName);
-        const games = lg.games.map(game => {
-          const h = game.homeTeam?.name || '?';
-          const a = game.awayTeam?.name || '?';
-          const { xg_h, xg_a } = predictXG(h, a);
-          const d = new Date(game.date);
-          const dateStr = d.toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: '2-digit' });
-          const timeStr = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-          return { h, a, d: dateStr, t: timeStr, stats: computeStats(xg_h, xg_a) };
+
+  var active = withStatus.filter(function(n){return n.status!=='closed';})
+    .sort(function(a,b){return a.startMs-b.startMs;}).slice(0,3);
+  var toProcess = active.length>0 ? active :
+    withStatus.sort(function(a,b){return a.startMs-b.startMs;}).slice(-3);
+
+  var staticGWs = buildGWData();
+
+  return toProcess.map(function(node) {
+    var apiStart=new Date(node.startDate).getTime();
+    var apiEnd=new Date(node.endDate).getTime();
+    var staticMatch = staticGWs.find(function(sg){
+      var ss=new Date(sg.start).getTime(), se=new Date(sg.end).getTime();
+      return Math.abs(ss-apiStart)<2*86400000 || Math.abs(se-apiEnd)<2*86400000;
+    });
+
+    var apiLeagues = (node.so5LeaguesWithGames||[])
+      .filter(function(lg){return lg.games&&lg.games.length>0;})
+      .map(function(lg){
+        var meta=getLeagueMeta(lg.displayName);
+        var games=(lg.games||[]).map(function(game){
+          var h=(game.homeTeam&&game.homeTeam.name)||'?';
+          var a=(game.awayTeam&&game.awayTeam.name)||'?';
+          var xgs=predictXG(h,a);
+          var gd=new Date(game.date);
+          var dow=DAYS[gd.getDay()];
+          var dd=String(gd.getDate()).padStart(2,'0');
+          var mm=String(gd.getMonth()+1).padStart(2,'0');
+          var hh=String(gd.getHours()).padStart(2,'0');
+          var mi=String(gd.getMinutes()).padStart(2,'0');
+          return {h:h,a:a,d:dow+' '+dd+'/'+mm,t:hh+':'+mi,stats:computeStats(xgs.xg_h,xgs.xg_a)};
         });
-        return { name: meta.name, tier: meta.tier, flag: meta.flag, games };
-      })
-      .filter(lg => lg.games.length > 0)
-      .sort((a,b) => { const o={champion:0,challenger:1,contender:2}; return (o[a.tier]||3)-(o[b.tier]||3); });
-    
-    const gwNum = node.gameWeek || node.slug.replace(/[^0-9]/g, '');
-    return {
-      slug: node.slug,
-      label: 'GW ' + gwNum,
-      start: node.startDate,
-      end: node.endDate,
-      status: node.status,
-      leagues
-    };
+        return {name:meta.name,tier:meta.tier,flag:meta.flag,games:games};
+      }).filter(function(lg){return lg.games.length>0;});
+
+    // Si API >= 5 ligues : utiliser API. Sinon : fusionner avec statique
+    var finalLeagues;
+    if (apiLeagues.length>=5) {
+      finalLeagues = apiLeagues;
+    } else if (staticMatch&&staticMatch.leagues.length>apiLeagues.length) {
+      var apiNames=new Set(apiLeagues.map(function(l){return l.name;}));
+      var extra=staticMatch.leagues.filter(function(l){return !apiNames.has(l.name);});
+      finalLeagues=apiLeagues.concat(extra);
+    } else {
+      finalLeagues=apiLeagues.length>0?apiLeagues:(staticMatch?staticMatch.leagues:[]);
+    }
+    finalLeagues.sort(function(a,b){
+      var o={'champion':0,'challenger':1,'contender':2};
+      return (o[a.tier]||3)-(o[b.tier]||3);
+    });
+
+    var gwNum=node.gameWeek||node.slug.replace(/[^0-9]/g,'');
+    return {slug:node.slug,label:'GW '+gwNum,start:node.startDate,end:node.endDate,status:node.status,leagues:finalLeagues};
   });
 }
 
-// ── AUTO-REFRESH LOGIC ──
+
 async function autoRefresh() {
   const success = await fetchFromAPI();
   if (success) {
@@ -1315,10 +1322,12 @@ async function loginSorare() {
   if (!email||!pass) { if(status){status.textContent='Remplis email et mot de passe';status.className='login-status err';} return; }
   if(status){status.textContent='Connexion...';status.className='login-note';}
   try {
-    var saltRes = await fetch('https://api.sorare.com/api/v1/users/'+encodeURIComponent(email), {method:'GET',headers:{'Content-Type':'application/json'}});
+    var saltRes = await fetch('https://api.sorare.com/api/v1/users/'+encodeURIComponent(email));
     var saltData = await saltRes.json();
     if (!saltData.salt) throw new Error('Compte introuvable');
-    // bcrypt embedded
+    if (!window.dcodeIO || !window.dcodeIO.bcrypt) {
+      await new Promise(function(res,rej){ var s=document.createElement('script'); s.src='https://cdnjs.cloudflare.com/ajax/libs/bcryptjs/2.4.3/bcrypt.min.js'; s.onload=res; s.onerror=rej; document.head.appendChild(s); });
+    }
     var hp = await new Promise(function(res,rej){ window.dcodeIO.bcrypt.hash(pass,saltData.salt,null,function(e,h){e?rej(e):res(h);}); });
     var sr = await fetch('https://api.sorare.com/federation/graphql',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:'mutation SignIn($input:signInInput!){signIn(input:$input){currentUser{slug}jwtToken(aud:"sorare-iq"){token expiredAt}errors{message}}}',variables:{input:{email:email,password:hp}}})});
     var sd = await sr.json();
@@ -1339,6 +1348,8 @@ async function loadMyGallery() {
     var data = await res.json();
     var cards = data && data.data && data.data.currentUser && data.data.currentUser.tokens && data.data.currentUser.tokens.anyCards ? data.data.currentUser.tokens.anyCards.nodes : [];
     playerState.myCards = cards.map(function(c){ return {name:(c&&c.player&&c.player.displayName)||'',slug:(c&&c.player&&c.player.slug)||''}; }).filter(function(c){return c.name;});
+    // JWT actif : recharger GW avec auth
+    fetchFromAPI().then(function(ok){ if(ok){renderAll();setStatus('live','API Sorare Live');} });
   } catch(e) { console.warn('Gallery load error:',e); }
 }
 
@@ -1371,6 +1382,5 @@ function logoutSorare() { playerState.jwtToken=null; playerState.userSlug=null; 
 
 
 </script>
-
 </body>
 </html>
