@@ -13,183 +13,218 @@ h1{font-size:18px;margin-bottom:6px;color:#00e5ff}
 label{display:block;font-size:11px;color:#4a5a78;margin-bottom:5px;letter-spacing:.5px;text-transform:uppercase}
 input{width:100%;background:#080c18;border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:11px 14px;color:#dce6f4;font-size:14px;outline:none;margin-bottom:14px;transition:border .2s}
 input:focus{border-color:#00e5ff}
-.btn{width:100%;padding:12px;border-radius:9px;background:rgba(0,229,255,.15);border:1px solid rgba(0,229,255,.4);color:#00e5ff;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:8px;display:block;text-align:center}
+input.otp{font-size:22px;letter-spacing:8px;text-align:center;font-weight:700}
+.btn{width:100%;padding:12px;border-radius:9px;background:rgba(0,229,255,.15);border:1px solid rgba(0,229,255,.4);color:#00e5ff;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:8px;display:block;text-align:center;transition:all .2s}
+.btn:hover{background:rgba(0,229,255,.25)}
 .btn:disabled{opacity:.4;cursor:not-allowed}
-.log{margin-top:12px;background:#080c18;border:1px solid rgba(255,255,255,.06);border-radius:8px;padding:10px;font-size:11px;font-family:monospace;color:#4a5a78;min-height:60px;white-space:pre-wrap;word-break:break-all;max-height:180px;overflow-y:auto}
-.ok{color:#00d68f}.err{color:#f56565}.info{color:#00e5ff}
-.jwt-section{display:none;margin-top:14px}
-.jwt-section label{color:#00d68f;margin-bottom:6px}
+.log{margin-top:12px;background:#080c18;border:1px solid rgba(255,255,255,.06);border-radius:8px;padding:10px;font-size:11px;font-family:monospace;color:#4a5a78;min-height:50px;white-space:pre-wrap;word-break:break-all;max-height:150px;overflow-y:auto}
+.ok{color:#00d68f}.err{color:#f56565}.info{color:#00e5ff}.warn{color:#f0b429}
+.section{display:none;margin-top:16px;padding-top:16px;border-top:1px solid rgba(255,255,255,.06)}
+.section.visible{display:block}
 textarea{width:100%;background:#080c18;border:1px solid rgba(0,214,143,.3);border-radius:8px;padding:10px;color:#00d68f;font-size:9px;font-family:monospace;resize:none;height:80px;outline:none;word-break:break-all}
 .copy{width:100%;padding:10px;border-radius:8px;background:rgba(0,214,143,.12);border:1px solid rgba(0,214,143,.3);color:#00d68f;font-size:12px;font-weight:700;cursor:pointer;margin-top:8px}
+.otp-label{font-size:13px;color:#f0b429;margin-bottom:8px;display:block}
 </style>
 </head>
 <body>
 <div class="card">
   <h1>🔑 JWT Sorare</h1>
-  <p class="desc">Connexion via la mutation GraphQL officielle Sorare.<br>Le salt est récupéré directement, le hash fait localement.</p>
+  <p class="desc">Connexion avec gestion de la double authentification (2FA).</p>
 
-  <label>Email Sorare</label>
-  <input type="email" id="em" placeholder="ton@email.com" autocomplete="email">
-  <label>Mot de passe</label>
-  <input type="password" id="pw" placeholder="••••••••" autocomplete="current-password">
+  <!-- Étape 1 : Email + mdp -->
+  <div id="step1">
+    <label>Email Sorare</label>
+    <input type="email" id="em" placeholder="ton@email.com" autocomplete="email">
+    <label>Mot de passe</label>
+    <input type="password" id="pw" placeholder="••••••••" autocomplete="current-password">
+    <button class="btn" id="btn1" onclick="step1()">🔗 Connexion</button>
+  </div>
 
-  <button class="btn" id="btn" onclick="run()">🔗 Obtenir mon JWT</button>
+  <!-- Étape 2 : Code 2FA (affiché si nécessaire) -->
+  <div id="step2" class="section">
+    <span class="otp-label">📱 Code double authentification reçu sur ton app/email</span>
+    <input type="number" id="otp" class="otp" placeholder="000000" maxlength="6" autocomplete="one-time-code">
+    <button class="btn" id="btn2" onclick="step2()">✅ Valider le code 2FA</button>
+  </div>
 
+  <!-- Log -->
   <div class="log" id="log">En attente...</div>
 
-  <div class="jwt-section" id="jwt-section">
-    <label>✅ JWT Token (valable 1 an)</label>
+  <!-- Résultat JWT -->
+  <div id="jwt-section" class="section">
+    <label style="color:#00d68f;display:block;margin-bottom:6px">✅ JWT Token (valable 1 an)</label>
     <textarea id="jwt" readonly></textarea>
-    <button class="copy" onclick="doCopy()">📋 Copier</button>
+    <button class="copy" onclick="doCopy()">📋 Copier le JWT</button>
   </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bcryptjs/2.4.3/bcrypt.min.js"></script>
 <script>
-var log = document.getElementById('log');
+var logEl = document.getElementById('log');
+var otpChallenge = null; // stocke le challenge 2FA
+
 function addLog(msg, cls) {
   var d = document.createElement('div');
-  d.className = cls || '';
+  d.className = cls||'';
   d.textContent = msg;
-  log.appendChild(d);
-  log.scrollTop = log.scrollHeight;
+  logEl.appendChild(d);
+  logEl.scrollTop = logEl.scrollHeight;
 }
-function clearLog() { log.innerHTML = ''; }
+function clearLog(){ logEl.innerHTML=''; }
 
-// ── Étape 1 : récupérer le salt ──
-// L'endpoint REST Sorare n'a PAS de restriction CORS stricte sur GET
-async function getSalt(email) {
-  var url = 'https://api.sorare.com/api/v1/users/' + encodeURIComponent(email);
-  
-  // Tentative 1 : appel direct
+// ── Fetch avec proxies en cascade ──
+var PROXIES = [
+  function(url){ return 'https://api.allorigins.win/get?url='+encodeURIComponent(url); },
+  function(url){ return 'https://corsproxy.io/?'+encodeURIComponent(url); },
+];
+
+async function fetchProxy(url, opts) {
+  // Essai direct d'abord
   try {
-    addLog('→ Tentative directe salt...', 'info');
-    var r = await fetch(url);
+    var r = await fetch(url, opts||{});
     var t = await r.text();
-    addLog('  Réponse: ' + t.substring(0,80), '');
+    // Vérifier que c'est du JSON Sorare (pas une page d'erreur)
     var j = JSON.parse(t);
-    if (j.salt) { addLog('  Salt OK', 'ok'); return j.salt; }
-    if (j.errors) throw new Error(j.errors[0] || 'Erreur Sorare');
-  } catch(e) { addLog('  Direct échoué: ' + e.message, 'err'); }
+    if (j.data !== undefined || j.salt !== undefined || j.errors !== undefined) return j;
+  } catch(e){ addLog('  Direct: '+e.message,''); }
 
-  // Tentative 2 : allorigins
-  try {
-    addLog('→ Proxy allorigins...', 'info');
-    var r2 = await fetch('https://api.allorigins.win/get?url=' + encodeURIComponent(url));
-    var j2 = await r2.json();
-    var inner = JSON.parse(j2.contents);
-    if (inner.salt) { addLog('  Salt OK via allorigins', 'ok'); return inner.salt; }
-  } catch(e) { addLog('  allorigins échoué: ' + e.message, 'err'); }
-
-  // Tentative 3 : jsonp-style via corsproxy.io
-  try {
-    addLog('→ Proxy corsproxy.io...', 'info');
-    var r3 = await fetch('https://corsproxy.io/?' + encodeURIComponent(url));
-    var t3 = await r3.text();
-    var j3 = JSON.parse(t3);
-    if (j3.salt) { addLog('  Salt OK via corsproxy', 'ok'); return j3.salt; }
-  } catch(e) { addLog('  corsproxy échoué: ' + e.message, 'err'); }
-
-  throw new Error('Impossible de récupérer le salt. Vérifie ton email.');
+  // Proxies
+  for (var i=0; i<PROXIES.length; i++) {
+    try {
+      var pUrl = PROXIES[i](url);
+      var pr = await fetch(pUrl, opts);
+      var pt = await pr.text();
+      var pj = JSON.parse(pt);
+      // allorigins wrappe dans .contents
+      if (pj.contents) pj = JSON.parse(pj.contents);
+      if (pj.data !== undefined || pj.salt !== undefined) return pj;
+    } catch(e){ addLog('  Proxy '+i+': '+e.message,''); }
+  }
+  throw new Error('Toutes les tentatives ont échoué');
 }
 
-// ── Étape 2 : mutation signIn ──
-async function signIn(email, hashedPwd) {
-  var body = JSON.stringify({
-    query: 'mutation M($i:signInInput!){signIn(input:$i){currentUser{slug}jwtToken(aud:"sorare-iq"){token expiredAt}errors{message}}}',
-    variables: { i: { email: email, password: hashedPwd } }
-  });
-  var opts = { method:'POST', headers:{'Content-Type':'application/json'}, body: body };
-  var gql = 'https://api.sorare.com/federation/graphql';
-
-  // Tentative 1 : directe
-  try {
-    addLog('→ signIn direct...', 'info');
-    var r = await fetch(gql, opts);
-    var j = await r.json();
-    addLog('  Statut: ' + r.status, '');
-    if (j.data) return j;
-  } catch(e) { addLog('  Direct échoué: ' + e.message, 'err'); }
-
-  // Tentative 2 : via allorigins (POST)
-  try {
-    addLog('→ signIn via allorigins...', 'info');
-    var r2 = await fetch('https://api.allorigins.win/post?url=' + encodeURIComponent(gql), opts);
-    var j2 = await r2.json();
-    if (j2.data) return j2;
-    // allorigins peut wrapper dans contents
-    if (j2.contents) return JSON.parse(j2.contents);
-  } catch(e) { addLog('  allorigins signIn échoué: ' + e.message, 'err'); }
-
-  // Tentative 3 : via corsproxy
-  try {
-    addLog('→ signIn via corsproxy...', 'info');
-    var r3 = await fetch('https://corsproxy.io/?' + encodeURIComponent(gql), opts);
-    var t3 = await r3.text();
-    return JSON.parse(t3);
-  } catch(e) { addLog('  corsproxy signIn échoué: ' + e.message, 'err'); }
-
-  throw new Error('Connexion à Sorare impossible depuis ce navigateur.');
-}
-
-async function run() {
+// ── Étape 1 : salt + signIn ──
+async function step1() {
   var email = document.getElementById('em').value.trim();
   var pwd   = document.getElementById('pw').value;
-  var btn   = document.getElementById('btn');
+  if (!email||!pwd){ clearLog(); addLog('Remplis email et mot de passe','err'); return; }
 
-  if (!email || !pwd) { clearLog(); addLog('Remplis email et mot de passe', 'err'); return; }
-
-  btn.disabled = true;
+  document.getElementById('btn1').disabled = true;
+  document.getElementById('jwt-section').classList.remove('visible');
+  document.getElementById('step2').classList.remove('visible');
   clearLog();
-  document.getElementById('jwt-section').style.display = 'none';
 
   try {
     // 1. Salt
-    addLog('=== ÉTAPE 1/3 : Salt ===', 'info');
-    var salt = await getSalt(email);
-    addLog('Salt: ' + salt.substring(0,20) + '...', 'ok');
+    addLog('1/3 Récupération du salt...','info');
+    var saltData = await fetchProxy('https://api.sorare.com/api/v1/users/'+encodeURIComponent(email));
+    if (!saltData.salt) throw new Error('Email introuvable sur Sorare');
+    addLog('   Salt OK ✓','ok');
 
-    // 2. Hash bcrypt
-    addLog('=== ÉTAPE 2/3 : Hash bcrypt ===', 'info');
-    var hashed = await new Promise(function(res, rej) {
-      dcodeIO.bcrypt.hash(pwd, salt, null, function(e,h){ e ? rej(e) : res(h); });
+    // 2. Hash
+    addLog('2/3 Hash bcrypt...','info');
+    var hashed = await new Promise(function(res,rej){
+      dcodeIO.bcrypt.hash(pwd, saltData.salt, null, function(e,h){ e?rej(e):res(h); });
     });
-    addLog('Hash OK: ' + hashed.substring(0,20) + '...', 'ok');
+    addLog('   Hash OK ✓','ok');
 
     // 3. SignIn
-    addLog('=== ÉTAPE 3/3 : SignIn ===', 'info');
-    var data = await signIn(email, hashed);
+    addLog('3/3 Connexion Sorare...','info');
+    var body = JSON.stringify({
+      query: 'mutation M($i:signInInput!){signIn(input:$i){currentUser{slug}jwtToken(aud:"sorare-iq"){token expiredAt}otpSessionChallenge errors{message}}}',
+      variables: { i: { email:email, password:hashed } }
+    });
+    var res = await fetchProxy('https://api.sorare.com/federation/graphql', {
+      method:'POST', headers:{'Content-Type':'application/json'}, body:body
+    });
 
-    var r = data && data.data && data.data.signIn;
-    if (!r) { addLog('Réponse complète: ' + JSON.stringify(data).substring(0,200), 'err'); throw new Error('Réponse invalide'); }
-    if (r.errors && r.errors.length) throw new Error(r.errors[0].message);
-    if (!r.jwtToken || !r.jwtToken.token) throw new Error('JWT absent');
+    var r = res && res.data && res.data.signIn;
+    if (!r) throw new Error('Réponse invalide: '+JSON.stringify(res).substring(0,100));
 
-    var jwt = r.jwtToken.token;
-    var exp = new Date(r.jwtToken.expiredAt).toLocaleDateString('fr-FR');
-    addLog('✅ Connecté : @' + (r.currentUser && r.currentUser.slug) + ' — expire: ' + exp, 'ok');
+    // Erreurs
+    if (r.errors && r.errors.length) throw new Error(r.errors[0].message||'Erreur inconnue');
 
-    document.getElementById('jwt').value = jwt;
-    document.getElementById('jwt-section').style.display = 'block';
+    // 2FA requis
+    if (r.otpSessionChallenge) {
+      otpChallenge = r.otpSessionChallenge;
+      addLog('   2FA requis — entre ton code ci-dessous','warn');
+      document.getElementById('step2').classList.add('visible');
+      document.getElementById('otp').focus();
+      return;
+    }
+
+    // Succès direct (pas de 2FA)
+    if (r.jwtToken && r.jwtToken.token) {
+      showJWT(r);
+      return;
+    }
+
+    throw new Error('Réponse inattendue: '+JSON.stringify(r).substring(0,100));
 
   } catch(e) {
-    addLog('❌ ' + e.message, 'err');
+    addLog('❌ '+e.message,'err');
   } finally {
-    btn.disabled = false;
+    document.getElementById('btn1').disabled = false;
   }
+}
+
+// ── Étape 2 : validation 2FA ──
+async function step2() {
+  var code = document.getElementById('otp').value.trim();
+  if (!code||code.length<6){ addLog('Entre le code à 6 chiffres','err'); return; }
+  if (!otpChallenge){ addLog('Challenge 2FA manquant, recommence','err'); return; }
+
+  document.getElementById('btn2').disabled = true;
+  addLog('Validation du code 2FA...','info');
+
+  try {
+    var body = JSON.stringify({
+      query: 'mutation M($i:signInInput!){signIn(input:$i){currentUser{slug}jwtToken(aud:"sorare-iq"){token expiredAt}errors{message}}}',
+      variables: { i: { otpSessionChallenge: otpChallenge, otpAttempt: code } }
+    });
+    var res = await fetchProxy('https://api.sorare.com/federation/graphql', {
+      method:'POST', headers:{'Content-Type':'application/json'}, body:body
+    });
+
+    var r = res && res.data && res.data.signIn;
+    if (!r) throw new Error('Réponse invalide');
+    if (r.errors && r.errors.length) throw new Error(r.errors[0].message||'Code incorrect');
+    if (!r.jwtToken || !r.jwtToken.token) throw new Error('JWT absent');
+
+    showJWT(r);
+
+  } catch(e) {
+    addLog('❌ '+e.message,'err');
+  } finally {
+    document.getElementById('btn2').disabled = false;
+  }
+}
+
+function showJWT(r) {
+  var jwt = r.jwtToken.token;
+  var exp = new Date(r.jwtToken.expiredAt).toLocaleDateString('fr-FR');
+  var slug = r.currentUser && r.currentUser.slug;
+  addLog('✅ Connecté : @'+slug+' — expire: '+exp,'ok');
+  document.getElementById('jwt').value = jwt;
+  document.getElementById('jwt-section').classList.add('visible');
 }
 
 function doCopy() {
   var ta = document.getElementById('jwt');
   ta.select();
-  try { document.execCommand('copy'); }
-  catch(e) { navigator.clipboard && navigator.clipboard.writeText(ta.value); }
+  try{ document.execCommand('copy'); }
+  catch(e){ navigator.clipboard&&navigator.clipboard.writeText(ta.value); }
   var b = document.querySelector('.copy');
-  b.textContent = '✅ Copié !';
-  setTimeout(function(){ b.textContent = '📋 Copier'; }, 2000);
+  b.textContent='✅ Copié !';
+  setTimeout(function(){ b.textContent='📋 Copier le JWT'; },2000);
 }
 
-document.addEventListener('keydown', function(e){ if(e.key==='Enter') run(); });
+document.addEventListener('keydown',function(e){
+  if(e.key==='Enter'){
+    if(document.getElementById('step2').classList.contains('visible')) step2();
+    else step1();
+  }
+});
 </script>
 </body>
 </html>
