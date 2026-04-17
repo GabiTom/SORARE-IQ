@@ -1336,8 +1336,14 @@ async function loginSorare() {
       await new Promise(function(res,rej){ var s=document.createElement('script'); s.src='https://cdnjs.cloudflare.com/ajax/libs/bcryptjs/2.4.3/bcrypt.min.js'; s.onload=res; s.onerror=rej; document.head.appendChild(s); });
     }
     // Utiliser hashSync comme recommandé par la doc Sorare
-    var hp = window.dcodeIO.bcrypt.hashSync(pass, saltData.salt);
+    // Nettoyage du mot de passe - trim() pour éviter espaces accidentels
+    var passForHash = pass; // Ne pas modifier le mot de passe
+    var hp = window.dcodeIO.bcrypt.hashSync(passForHash, saltData.salt);
     if (!hp) throw new Error('Erreur bcrypt hash');
+    console.log('Email:', email);
+    console.log('Salt:', saltData.salt);
+    console.log('Hash produit:', hp);
+    if(status) status.textContent = '2/3 Hash OK (' + hp.length + ' chars)';
 
     // 3. SignIn avec support 2FA
     if(status) status.textContent = '3/3 Connexion Sorare... (hash:'+hp.substring(0,10)+'...)';
@@ -1350,7 +1356,7 @@ async function loginSorare() {
       })
     });
     var rawText = await sr.text();
-    if(status) status.textContent = 'Reponse: ' + rawText.substring(0,120);
+    if(status) status.textContent = 'RAW(200chars): ' + rawText.substring(0,200);
     var sd;
     try { sd = JSON.parse(rawText); } catch(e) { throw new Error('JSON invalide: ' + rawText.substring(0,80)); }
     var r = sd && sd.data && sd.data.signIn;
