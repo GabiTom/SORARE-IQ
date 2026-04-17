@@ -1335,10 +1335,12 @@ async function loginSorare() {
     if (!window.dcodeIO || !window.dcodeIO.bcrypt) {
       await new Promise(function(res,rej){ var s=document.createElement('script'); s.src='https://cdnjs.cloudflare.com/ajax/libs/bcryptjs/2.4.3/bcrypt.min.js'; s.onload=res; s.onerror=rej; document.head.appendChild(s); });
     }
-    var hp = await new Promise(function(res,rej){ window.dcodeIO.bcrypt.hash(pass,saltData.salt,null,function(e,h){e?rej(e):res(h);}); });
+    // Utiliser hashSync comme recommandé par la doc Sorare
+    var hp = window.dcodeIO.bcrypt.hashSync(pass, saltData.salt);
+    if (!hp) throw new Error('Erreur bcrypt hash');
 
     // 3. SignIn avec support 2FA
-    if(status) status.textContent = '3/3 Connexion Sorare...';
+    if(status) status.textContent = '3/3 Connexion Sorare... (hash:'+hp.substring(0,10)+'...)';
     var sr = await fetch('https://wispy-bush-5037.thomas-renvaze.workers.dev/graphql',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
