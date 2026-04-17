@@ -1347,10 +1347,16 @@ async function loginSorare() {
         variables:{i:{email:email,password:hp}}
       })
     });
-    var sd = await sr.json();
+    var rawText = await sr.text();
+    if(status) status.textContent = 'Reponse: ' + rawText.substring(0,120);
+    var sd;
+    try { sd = JSON.parse(rawText); } catch(e) { throw new Error('JSON invalide: ' + rawText.substring(0,80)); }
     var r = sd && sd.data && sd.data.signIn;
-    if (!r) throw new Error('Reponse invalide du serveur');
-    if (r.errors && r.errors.length) throw new Error(r.errors[0].message);
+    if (!r) {
+      if (sd && sd.errors) throw new Error('GraphQL: ' + sd.errors[0].message);
+      throw new Error('Reponse: ' + rawText.substring(0,100));
+    }
+    if (r.errors && r.errors.length) throw new Error('Sorare: ' + r.errors[0].message);
 
     // 2FA requis ?
     if (r.otpSessionChallenge) {
